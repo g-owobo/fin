@@ -32,7 +32,9 @@ services:
       - redis
 
   worker:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.celery
     command: ["./worker.sh"]
     env_file: .env
     environment:
@@ -44,7 +46,9 @@ services:
       - redis
 
   beat:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.celery
     command: ["./beat.sh"]
     env_file: .env
     environment:
@@ -53,6 +57,22 @@ services:
       CELERY_RESULT_BACKEND: redis://redis:6379/0
     depends_on:
       - postgres
+      - redis
+
+  flower:
+    image: mher/flower:latest
+    env_file: .env
+    environment:
+      # Set FLOWER_BASIC_AUTH in your .env to enable basic auth (e.g. FLOWER_BASIC_AUTH=admin:changeme)
+      FLOWER_BASIC_AUTH: ${FLOWER_BASIC_AUTH:-}
+    command: sh -c 'if [ -n """$FLOWER_BASIC_AUTH""" ]; then \
+      flower --broker=${CELERY_BROKER_URL:-redis://redis:6379/0} --address=0.0.0.0 --port=5555 --basic_auth="$FLOWER_BASIC_AUTH"; \
+      else \
+      flower --broker=${CELERY_BROKER_URL:-redis://redis:6379/0} --address=0.0.0.0 --port=5555; \
+      fi'
+    ports:
+      - "5555:5555"
+    depends_on:
       - redis
 
 volumes:
